@@ -1,0 +1,77 @@
+# --------------------  Base Image --------------------
+    FROM debian:buster
+
+    # --------------------  Set Environment Variables --------------------
+    ENV DEBIAN_FRONTEND=noninteractive \
+        PHP_VERSION=7.3 \
+        WP_CLI_URL=https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+        WP_PATH=/var/www/html \
+        PHP_FPM_CONF=/etc/php/7.3/fpm/pool.d/www.conf \
+        PHP_PACKAGES="php php7.3 php7.3-fpm php7.3-mysql curl ca-certificates unzip"
+    
+    # -------------------- Install Required Packages --------------------
+    RUN apt-get update && apt-get upgrade -y && \
+        apt-get install -y --no-install-recommends ${PHP_PACKAGES} && \
+        apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    
+    # --------------------  Create Required Directories --------------------
+    RUN install -d -m 755 -o www-data -g www-data ${WP_PATH} /run/php
+    
+    # --------------------  Install WP-CLI --------------------
+    RUN curl -sSLo /usr/local/bin/wp ${WP_CLI_URL} && \
+        chmod +x /usr/local/bin/wp
+    
+    # --------------------  Download WordPress Core --------------------
+    RUN wp core download --path=${WP_PATH} --allow-root
+    
+    # --------------------  Fix PHP-FPM Listening Port --------------------
+    RUN sed -i "s|listen = /run/php/php7.3-fpm.sock|listen = 9000|g" ${PHP_FPM_CONF}
+    
+    # --------------------  Create Startup Script --------------------
+    RUN echo '#!/bin/bash\n\
+    set -e\n\
+    \n\
+    if [ ! -f "${WP_PATH}/wp-config.php" ]; then\n\
+        echo "Waiting for MariaDB..."\n\
+        while ! mysqladmin ping -h"mariadb" -u"${DATABASE_USER}" -p"${DATABASE_PASSWORD}" --silent; do\n\
+            sleep 2\n\
+        done\n\
+        \n\
+        wp config create \\\n\
+            --dbname="${DATABASE_NAME}" \\\n\
+            --dbuser="${DATABASE_USER}" \\\n\
+            --dbpass="${DATABASE_PASSWORD}" \\\n\
+            --dbhost="mariadb" \\\n\
+            --path=${WP_PATH} \\\n\
+            --allow-root\n\
+        \n\
+        wp core install \\\n\
+            --url="${DOMAIN_NAME}" \\\n\
+            --title="${WORDPRESS_TITLE}" \\\n\
+            --admin_user="${WORDPRESS_USER_ADMIN}" \\\n\
+            --admin_password="${WORDPRESS_PASSWORD_ADMIN}" \\\n\
+            --admin_email="${WORDPRESS_EMAIL_ADMIN}" \\\n\
+            --path=${WP_PATH} \\\n\
+            --allow-root\n\
+        \n\
+        wp user create "${WORDPRESS_USER}" "${WORDPRESS_EMAIL_USER}" \\\n\
+            --user_pass="${WORDPRESS_PASSWORD_USER}" \\\n\
+            --role=author \\\n\
+            --path=${WP_PATH} \\\n\
+            --allow-root\n\
+        \n\
+        wp option update home "https://${DOMAIN_NAME}" --path=${WP_PATH} --allow-root\n\
+        wp option update siteurl "https://${DOMAIN_NAME}" --path=${WP_PATH} --allow-root\n\
+    fi\n\
+    \n\
+    chown -R www-data:www-data ${WP_PATH}\n\
+    chmod -R 755 ${WP_PATH}/wp-content/uploads\n\
+    \nexec "$@"' > /usr/local/bin/docker-entrypoint.sh && \
+        chmod +x /usr/local/bin/docker-entrypoint.sh
+    
+    # --------------------  Set Permissions --------------------
+    RUN chown -R www-data:www-data ${WP_PATH}
+    
+    # --------------------  Entrypoint and Command --------------------
+    ENTRYPOINT ["docker-entrypoint.sh"]
+    CMD ["php-fpm7.3", "-F"]

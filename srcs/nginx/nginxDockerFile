@@ -1,0 +1,18 @@
+# Use Debian Buster as the base OS
+FROM debian:buster
+
+# Update package list & install Nginx + OpenSSL for HTTPS
+RUN apt update && apt install -y nginx openssl curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy the Nginx configuration file
+COPY ./nginxConfigFile /etc/nginx/sites-available/default
+
+# Generate a self-signed SSL certificate with shorter field values
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/nginx-selfsigned.key \
+    -out /etc/ssl/certs/nginx-selfsigned.crt \
+    -subj "/C=DE/ST=BW/L=Heilbronn/O=42/OU=IT/CN=localhost"
+
+# Run Nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]
