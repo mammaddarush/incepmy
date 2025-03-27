@@ -15,7 +15,7 @@ NAME = inception
 
 # Docker Compose Path
 DC = docker-compose -f srcs/docker-compose.yml --env-file srcs/.env
-VOLUME_PATH = /workspaces/Inception/mmansuri/data
+VOLUME_PATH = /home/mmansuri/data
 
 # Default Target
 all: up
