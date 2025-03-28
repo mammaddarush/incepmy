@@ -1,20 +1,17 @@
 # --------------------  Base Image --------------------
 # Use Debian Buster as the base OS for MariaDB
 FROM debian:buster
-
 # --------------------  Set Environment Variables --------------------
 ENV DEBIAN_FRONTEND=noninteractive \
     MYSQL_DATA_DIR=/var/lib/mysql \
     MYSQL_CONF=/etc/mysql/mariadb.conf.d/50-server.cnf \
     MYSQL_RUN_DIR=/run/mysqld \
     MYSQL_PACKAGES="mariadb-server openssl"
-
 # --------------------  Install Required Packages --------------------
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ${MYSQL_PACKAGES} && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 # --------------------  Create Required Directories & Set Permissions --------------------
 RUN install -d -m 755 -o mysql -g mysql ${MYSQL_RUN_DIR}
 #   `install -d` → Ensures the directory exists before setting permissions.
@@ -23,7 +20,6 @@ RUN install -d -m 755 -o mysql -g mysql ${MYSQL_RUN_DIR}
 #    - `5` → Group (Read, Execute).
 #    - `5` → Others (Read, Execute).
 #   `-o mysql -g mysql` → Assigns ownership to the MySQL system user.
-
 # --------------------  Copy MariaDB Configuration --------------------
 # Instead of copying an external file, we write the config directly in the Dockerfile.
 RUN echo "[mysqld]\n\
@@ -43,13 +39,10 @@ innodb_log_file_size=64M" > ${MYSQL_CONF} && \
 #  Improves database I/O performance.
 #  Sets log file size for InnoDB.
 #  Ensures the configuration file is readable by MariaDB.
-
 ############################################################
 ############################################################
 ############################################################
-
 # --------------------  Initialize MariaDB --------------------
-# Combined initialization into a single script to avoid layer issues
 RUN mkdir -p /docker-entrypoint-initdb.d && \
     echo '#!/bin/bash\n\
 set -e\n\
@@ -90,16 +83,23 @@ echo "Initialization complete."\n\
 ' > /docker-entrypoint-initdb.d/init.sh && \
     chmod +x /docker-entrypoint-initdb.d/init.sh
 
-#   Initializes the MariaDB data directory if needed.
-#   Starts a temporary MariaDB instance for setup.
-#   Properly waits for MariaDB to be ready.
-#   Executes all setup commands in a single session.
-#   Shuts down the temporary instance cleanly.
-#   Creates a marker file to indicate initialization is complete.
+
+
+#   Ensures the script exits on the first error.
+#   Starts MySQL in the background without external connections.
+#   Captures the MySQL process ID.
+#   Waits for MySQL to be fully up before proceeding.
+#   Executes SQL commands as the root user.
+#   Secures the root account with a password.
+#   Creates the database if it doesn’t exist.
+#   Creates a database user if not already present.
+#   Grants full permissions to the new user.
+#   Refreshes the privilege tables to apply changes.
+#   Creates a marker file to indicate the database is initialized. 
+#   Shuts down MySQL safely using its PID file.
 
 EXPOSE 3306  
 #   Ensures that MariaDB can be accessed from other containers or the host machine.
-
 # --------------------  Start MariaDB --------------------
 CMD ["mysqld", "--user=mysql", "--console"]
 #   Runs MySQL in the foreground as the main process inside the container.

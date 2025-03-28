@@ -1,21 +1,12 @@
-# **************************************************************************** #
-#                                                                              #
-#                                                         :::      ::::::::    #
-#    Makefile                                           :+:      :+:    :+:    #
-#                                                     +:+ +:+         +:+      #
-#    By: mmansuri <mmansuri@student.42.fr>          +#+  +:+       +#+         #
-#                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2024/05/27 18:45:45 by mmansuri          #+#    #+#              #
-#    Updated: 2024/12/20 17:12:52 by mmansuri         ###   ########.fr        #
-#                                                                              #
-# **************************************************************************** #
+# Makefile for Inception Project
 
 # Container Name
 NAME = inception
 
 # Docker Compose Path
 DC = docker-compose -f srcs/docker-compose.yml --env-file srcs/.env
-VOLUME_PATH = /home/mmansuri/data
+VOLUME_PATH =/home/mmansuri/data
+VOLUME_PATH_CLEAN = /home/mmansuri
 
 # Default Target
 all: up
@@ -23,7 +14,7 @@ all: up
 
 # create folders
 folders:
-	@mkdir -p $(VOLUME_PATH)/mysql
+	@mkdir -p $(VOLUME_PATH)/mariadb
 	@mkdir -p $(VOLUME_PATH)/wordpress
 
 # Build the docker image
@@ -33,7 +24,7 @@ build:folders
 
 # Run the docker container
 up:build
-	sudo systemctl stop mariadb || true
+	sudo systemctl stop mariadb
 	@$(DC) up -d
 	@echo "Inception is up and running...\n"
 
@@ -68,6 +59,7 @@ clean:
 	@docker images -q mariadb wordpress nginx | xargs -r docker rmi -f
 	@docker volume ls -qf dangling=true | xargs -r docker volume rm
 	@docker system prune -a -f
+	@sudo rm -rf $(VOLUME_PATH_CLEAN)
 
 # Remove all the docker containers and images and start fresh
 re: clean all

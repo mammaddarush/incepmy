@@ -1,52 +1,48 @@
-# HTTP to HTTPS redirect
+
+#  Create a server block to listen on HTTP (port 80)
+# server {
+#     listen 80 default_server;      # Listen for HTTP requests on port 80
+#     listen [::]:80 default_server; # Listen for IPv6 HTTP requests
+
+#     #  Define the domain name (set via an environment variable)
+#     server_name ${DOMAIN_NAME}; # Domain name or IP address
+
+#     #  Redirect all HTTP requests to HTTPS with a 301 (Permanent Redirect)
+#     return 301 https://$host$request_uri;
+# }
+
+# set config for a virtual server
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name ${DOMAIN_NAME};
-    return 301 https://$host$request_uri;
-}
+    # Listen for HTTPS connections on IPv4 and IPv6
+    listen 443 ssl;         #Standard port for HTTPS
+    listen [::]:443 ssl;    # IPv6 support for HTTPS
 
-# HTTPS server block
-server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    # Define the web root directory and default index file
+    index index.php; # Default index file
+    # Root directory
+    root /var/www/html; # Root directory of the server
 
-    server_name ${DOMAIN_NAME};
-    root /var/www/html;
-    index index.php;
+    # Server name (Uses environment variable for flexibility)
+    server_name ${DOMAIN_NAME}; # Domain name or IP address
+    # SSL certificate and key locations (Self-signed or Let's Encrypt)
+    ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;    # SSL certificate file 
+    ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key; # SSL private key file location
 
-    # SSL configuration
-    ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
-    ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
+    # Enforce modern SSL/TLS protocols
+    ssl_protocols TLSv1.2 TLSv1.3; # TLSv1.2 and TLSv1.3 are the latest versions of the SSL/TLS protocol
 
-    # WordPress permalink handling
-    location / {
-        try_files $uri $uri/ /index.php?$args;
-    }
-
-    # PHP handling
+    # Location block to handle PHP requests (WordPress)
     location ~ \.php$ {
-        include fastcgi_params;
-        fastcgi_pass wordpress:9000;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param PATH_INFO $fastcgi_path_info;
-        
-        # Security headers
-        add_header X-Frame-Options "SAMEORIGIN";
-        add_header X-Content-Type-Options "nosniff";
+        try_files $uri $uri/ =404; # Check if the file exists
+    }
+    # Location block to handle PHP requests (WordPress)
+    location ~ \.php$ {
+        fastcgi_pass wordpress:9000; # Pass PHP requests to the WordPress container
+        include fastcgi_params; # Include the FastCGI parameters
+        fastcgi_index index.php; # Default index file
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; # Set the PHP script filename
+        fastcgi_param PATH_INFO $fastcgi_path_info; # Set the PHP path info
     }
 
-    # Security - deny access to hidden files
-    location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-
-    # Performance - cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires max;
-        log_not_found off;
-    }
 }
+
