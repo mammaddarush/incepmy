@@ -55,7 +55,6 @@ services:
       - .env
     # Define the depends_on for the service.
     depends_on:
-      - mariadb
       - wordpress
 
   # wordpress service
