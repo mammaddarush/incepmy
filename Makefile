@@ -58,7 +58,6 @@ clean:
 	@docker images -q mariadb wordpress nginx | xargs -r docker rmi -f
 	@docker volume ls -qf dangling=true | xargs -r docker volume rm
 	@docker system prune -a -f
-	@sudo rm -rf $(VOLUME_PATH_CLEAN)
 
 # Remove all the docker containers and images and start fresh
 re: clean all
