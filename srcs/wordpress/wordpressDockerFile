@@ -2,17 +2,19 @@
     FROM debian:buster
 
     # --------------------  Set Environment Variables --------------------
-    ENV DEBIAN_FRONTEND=noninteractive 
-    ENV PHP_VERSION=7.3 \
+    ENV DEBIAN_FRONTEND=noninteractive \
+        PHP_VERSION=7.3 \
         WP_CLI_URL=https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
         WP_PATH=/var/www/html \
         PHP_FPM_CONF=/etc/php/7.3/fpm/pool.d/www.conf \
         PHP_PACKAGES="php php7.3 php7.3-fpm php7.3-mysql curl ca-certificates unzip"
     
     # -------------------- Install Required Packages --------------------
-    RUN apt-get update && apt-get upgrade -y && \
+    RUN apt-get update && \
+        apt-get upgrade -y && \
         apt-get install -y --no-install-recommends ${PHP_PACKAGES} && \
-        apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
     
     # --------------------  Create Required Directories --------------------
     RUN install -d -m 755 -o www-data -g www-data ${WP_PATH} /run/php
@@ -28,18 +30,19 @@
     RUN echo '#!/bin/bash\n\
     set -e\n\
     \n\
-    **if [ ! -d "${WP_PATH}/wp-admin" ]; then\n\
-        echo "Downloading WordPress..."\n\
+    if [ ! -d "${WP_PATH}/wp-admin" ]; then\n\
+        echo "Initializing WordPress installation..."\n\
         wp core download --path=${WP_PATH} --allow-root\n\
         chown -R www-data:www-data ${WP_PATH}\n\
-    fi\n\**
+    fi\n\
     \n\
-    echo "Waiting for MariaDB..."\n\
+    echo "Waiting for MariaDB to be ready..."\n\
     while ! mysqladmin ping -h"mariadb" -u"${DATABASE_USER}" -p"${DATABASE_PASSWORD}" --silent; do\n\
         sleep 2\n\
     done\n\
     \n\
     if [ ! -f "${WP_PATH}/wp-config.php" ]; then\n\
+        echo "Configuring WordPress..."\n\
         wp config create \\\n\
             --dbname="${DATABASE_NAME}" \\\n\
             --dbuser="${DATABASE_USER}" \\\n\
@@ -69,12 +72,12 @@
     \n\
     chown -R www-data:www-data ${WP_PATH}\n\
     chmod -R 755 ${WP_PATH}/wp-content/uploads\n\
-    \nexec "$@"' > /usr/local/bin/docker-entrypoint.sh && \
+    \nexec php-fpm7.3 -F' > /usr/local/bin/docker-entrypoint.sh && \
         chmod +x /usr/local/bin/docker-entrypoint.sh
     
-    # --------------------  Set Correct File Permissions --------------------
-    RUN chown -R www-data:www-data ${WP_PATH}
+    # --------------------  Final Permissions --------------------
+    RUN chown -R www-data:www-data ${WP_PATH} && \
+        chmod -R 755 ${WP_PATH}
     
-    # --------------------  Start PHP-FPM --------------------
+    # --------------------  Runtime Configuration --------------------
     ENTRYPOINT ["docker-entrypoint.sh"]
-    CMD ["php-fpm7.3", "-F"]
