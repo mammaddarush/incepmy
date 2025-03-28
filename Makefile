@@ -24,7 +24,6 @@ build:folders
 
 # Run the docker container
 up:build
-	sudo systemctl stop mariadb
 	@$(DC) up -d
 	@echo "Inception is up and running...\n"
 
