@@ -1,61 +1,21 @@
-FROM debian:buster
-
-# install maridb server
-RUN apt-get update && apt-get install -y mariadb-server openssl && apt-get clean
-
-# copy the mariadb configuration file
-COPY ./mrun.sh /mrun.sh
-
-# WORKDIR /
-RUN chmod +x /mrun.sh
-
-EXPOSE 3306
-
-# Run the script
-CMD ["sh", "/mrun.sh"]
-
 # =============================================
 # MariaDB Dockerfile
-# =============================================
-#
-# This Dockerfile sets up a MariaDB server with:
-# 1. Base Debian Buster image
-# 2. MariaDB server installation
-# 3. OpenSSL for secure connections
-# 4. Custom initialization script
-# 5. Proper port exposure
-
 # Use Debian Buster as the base image
 FROM debian:buster
-
 # --------------------------------------------------
 # Package Installation
-# --------------------------------------------------
-# Update package lists and install required packages:
-# - mariadb-server: The MariaDB database server
-# - openssl: For secure connection support
-# Clean up apt cache to reduce image size
 RUN apt-get update && \
     apt-get install -y mariadb-server openssl && \
     apt-get clean
-
 # --------------------------------------------------
 # Configuration and Scripts
-# --------------------------------------------------
-# Copy the database initialization script into the container
-# This script handles database setup and user configuration
 COPY ./mrun.sh /mrun.sh
-
 # Make the initialization script executable
 RUN chmod +x /mrun.sh
-
 # --------------------------------------------------
 # Network Configuration
-# --------------------------------------------------
 # Expose the default MySQL/MariaDB port (3306)
-# This allows external connections to the database
 EXPOSE 3306
-
 # --------------------------------------------------
 # Container Startup
 # --------------------------------------------------
